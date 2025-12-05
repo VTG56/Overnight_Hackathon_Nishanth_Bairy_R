@@ -1,11 +1,11 @@
-# VideoGuard Smart Contract Documentation
+# BlockPost Smart Contract Documentation
 ## Blockchain + Smart Contracts Implementation (PERSON 4)
 
 ---
 
 ## 🎯 Overview
 
-VideoGuard is a blockchain-based video copyright protection system deployed on **Polygon Mumbai Testnet**. It uses a 3-layer hash detection system to identify exact duplicates, visual matches, and audio matches.
+BlockPost is a blockchain-based video copyright protection system deployed on **Polygon Mumbai Testnet**. It uses a 3-layer hash detection system to identify exact duplicates, visual matches, and audio matches.
 
 ### Key Features
 - ✅ **3-Layer Detection**: Exact, Perceptual, and Audio fingerprinting
@@ -208,7 +208,7 @@ npx hardhat test
 
 **Expected Output**:
 ```
-  VideoGuard
+  BlockPost
     Deployment
       ✓ Should set the correct admin
       ✓ Should set owner as initial arbitrator
@@ -231,21 +231,21 @@ npx hardhat run scripts/deploy-Mumbai.js --network mumbai
 
 **Expected Output**:
 ```
-🚀 Deploying VideoGuard contract to Polygon Mumbai testnet...
+🚀 Deploying BlockPost contract to Polygon Mumbai testnet...
 
 📍 Deploying from account: 0x1234...
 💰 Account balance: 0.5 MATIC
 
-📦 Deploying VideoGuard contract...
-✅ VideoGuard deployed to: 0xABCD1234...
+📦 Deploying BlockPost contract...
+✅ BlockPost deployed to: 0xABCD1234...
 🔗 View on PolygonScan: https://mumbai.polygonscan.com/address/0xABCD1234...
 
 ⏳ Waiting for 5 block confirmations...
 ✅ Confirmations complete
 
 💾 Contract ABI saved to: docs/CONTRACT-ABI.json
-💾 Frontend contract data saved to: frontend/src/VideoGuardContract.json
-💾 Backend contract data saved to: backend/src/VideoGuardContract.json
+💾 Frontend contract data saved to: frontend/src/BlockPostContract.json
+💾 Backend contract data saved to: backend/src/BlockPostContract.json
 💾 Environment template saved to: .env.contract
 
 🔍 Verifying contract on PolygonScan...
@@ -358,10 +358,10 @@ blockchain.onDisputeRaised((event) => {
 ```javascript
 const { ethers } = require("hardhat");
 
-const videoGuard = await ethers.getContractAt("VideoGuard", CONTRACT_ADDRESS);
+const BlockPost = await ethers.getContractAt("BlockPost", CONTRACT_ADDRESS);
 
 // Register video
-const tx = await videoGuard.registerVideo(
+const tx = await BlockPost.registerVideo(
     ethers.keccak256(ethers.toUtf8Bytes("test_video")),
     "phash_test",
     "audio_test",
@@ -378,7 +378,7 @@ console.log("Video registered!");
 
 ```javascript
 // Upload same video again
-const [isRepost, creator, ipfsHash, matchType] = await videoGuard.detectRepost(
+const [isRepost, creator, ipfsHash, matchType] = await BlockPost.detectRepost(
     ethers.keccak256(ethers.toUtf8Bytes("test_video")),
     "phash_test",
     "audio_test"
