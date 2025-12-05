@@ -16,6 +16,8 @@ function CreatePost({ isOpen, onClose, onPostCreated }) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadStatus, setUploadStatus] = useState(""); // "hashing", "ipfs", "blockchain", "complete"
+  const [blockchainData, setBlockchainData] = useState(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -166,14 +168,33 @@ function CreatePost({ isOpen, onClose, onPostCreated }) {
 
     if (response.data.success) {
       setUploadProgress(100);
+      setUploadStatus("complete");
       console.log("Post created successfully:", response.data);
       
-      // Reset form
-      setTimeout(() => {
-        resetForm();
-        onClose();
-        if (onPostCreated) onPostCreated();
-      }, 1000);
+      // Store blockchain data to display
+      if (response.data.status === 'NEW_ASSET_REGISTERED' && response.data.onChain) {
+        setBlockchainData({
+          status: 'NEW_ASSET_REGISTERED',
+          txHash: response.data.onChain.txHash,
+          blockNumber: response.data.onChain.blockNumber,
+          contractAddress: response.data.onChain.contractAddress,
+          gasUsed: response.data.onChain.gasUsed,
+          ipfsCid: response.data.ipfs.cid,
+          gatewayUrl: response.data.ipfs.gatewayUrl
+        });
+      } else if (response.data.status === 'REPOST_DETECTED' && response.data.repost) {
+        setBlockchainData({
+          status: 'REPOST_DETECTED',
+          originalCreator: response.data.repost.originalCreator,
+          matchType: response.data.repost.matchType,
+          confidence: response.data.repost.confidence,
+          ipfsCid: response.data.ipfs.cid,
+          gatewayUrl: response.data.ipfs.gatewayUrl
+        });
+      }
+      
+      // Keep modal open to show blockchain details
+      // User will manually close after viewing
     } else {
       throw new Error(response.data.error || "Upload failed");
     }
@@ -188,6 +209,8 @@ function CreatePost({ isOpen, onClose, onPostCreated }) {
     setFilePreview(null);
     setError("");
     setUploadProgress(0);
+    setUploadStatus("");
+    setBlockchainData(null);
   };
 
   const handleClose = () => {
@@ -406,7 +429,12 @@ function CreatePost({ isOpen, onClose, onPostCreated }) {
               {uploading && (
                 <div>
                   <div className="flex items-center justify-between text-sm mb-2">
-                    <span className="text-slate-400">Uploading to IPFS...</span>
+                    <span className="text-slate-400">
+                      {uploadProgress < 30 ? 'Hashing file...' : 
+                       uploadProgress < 70 ? 'Uploading to IPFS...' : 
+                       uploadProgress < 100 ? 'Registering on blockchain...' : 
+                       'Complete!'}
+                    </span>
                     <span className="text-blue-400">{uploadProgress}%</span>
                   </div>
                   <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
@@ -414,6 +442,102 @@ function CreatePost({ isOpen, onClose, onPostCreated }) {
                       className="h-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all duration-300"
                       style={{ width: `${uploadProgress}%` }}
                     />
+                  </div>
+                </div>
+              )}
+
+              {/* Blockchain Success Details */}
+              {blockchainData && blockchainData.status === 'NEW_ASSET_REGISTERED' && (
+                <div className="p-4 bg-green-500/10 border border-green-500/30 rounded-lg space-y-3">
+                  <div className="flex items-center gap-2 text-green-400 font-semibold">
+                    <span className="text-2xl">✅</span>
+                    <span>Asset Registered on Blockchain!</span>
+                  </div>
+                  
+                  <div className="space-y-2 text-sm">
+                    <div>
+                      <span className="text-slate-400">Transaction Hash:</span>
+                      <div className="mt-1 p-2 bg-slate-800 rounded font-mono text-xs break-all text-blue-400">
+                        {blockchainData.txHash}
+                      </div>
+                      <a 
+                        href={`https://amoy.polygonscan.com/tx/${blockchainData.txHash}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-400 hover:text-blue-300 text-xs mt-1 inline-block"
+                      >
+                        View on PolygonScan →
+                      </a>
+                    </div>
+
+                    <div>
+                      <span className="text-slate-400">Block Number:</span>
+                      <div className="mt-1 p-2 bg-slate-800 rounded font-mono text-xs text-slate-200">
+                        {blockchainData.blockNumber}
+                      </div>
+                    </div>
+
+                    <div>
+                      <span className="text-slate-400">IPFS CID:</span>
+                      <div className="mt-1 p-2 bg-slate-800 rounded font-mono text-xs break-all text-purple-400">
+                        {blockchainData.ipfsCid}
+                      </div>
+                      <a 
+                        href={blockchainData.gatewayUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-purple-400 hover:text-purple-300 text-xs mt-1 inline-block"
+                      >
+                        View on IPFS →
+                      </a>
+                    </div>
+
+                    {blockchainData.gasUsed && (
+                      <div>
+                        <span className="text-slate-400">Gas Used:</span>
+                        <span className="ml-2 text-slate-200">{blockchainData.gasUsed}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Repost Detection Alert */}
+              {blockchainData && blockchainData.status === 'REPOST_DETECTED' && (
+                <div className="p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg space-y-3">
+                  <div className="flex items-center gap-2 text-yellow-400 font-semibold">
+                    <span className="text-2xl">⚠️</span>
+                    <span>Duplicate Content Detected!</span>
+                  </div>
+                  
+                  <div className="space-y-2 text-sm">
+                    <p className="text-slate-300">
+                      This content already exists on the blockchain. The original creator owns the rights.
+                    </p>
+
+                    <div>
+                      <span className="text-slate-400">Original Creator:</span>
+                      <div className="mt-1 p-2 bg-slate-800 rounded font-mono text-xs break-all text-yellow-400">
+                        {blockchainData.originalCreator}
+                      </div>
+                    </div>
+
+                    <div>
+                      <span className="text-slate-400">Match Type:</span>
+                      <span className="ml-2 text-slate-200 font-semibold">{blockchainData.matchType}</span>
+                    </div>
+
+                    <div>
+                      <span className="text-slate-400">Confidence:</span>
+                      <span className="ml-2 text-slate-200 font-semibold">{blockchainData.confidence}%</span>
+                    </div>
+
+                    <div>
+                      <span className="text-slate-400">Your Upload IPFS:</span>
+                      <div className="mt-1 p-2 bg-slate-800 rounded font-mono text-xs break-all text-purple-400">
+                        {blockchainData.ipfsCid}
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}
