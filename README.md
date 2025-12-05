@@ -6,6 +6,8 @@
 
 # BlockPost — Decentralized Content & Verification Platform
 
+**🚀 Live Demo:** [https://block-post.vercel.app/](https://block-post.vercel.app/)
+
 BlockPost is a decentralized content platform that stores media and metadata on IPFS, verifies originality using a multi-layer hashing approach (VideoGuard verification), and records ownership/verification evidence on-chain (Polygon). The project combines a React + Vite frontend, TypeScript Node backend, and Solidity smart contracts.
 
 ---
