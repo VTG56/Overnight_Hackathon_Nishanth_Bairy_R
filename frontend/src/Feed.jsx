@@ -17,6 +17,7 @@ function Feed() {
   const [loadingPosts, setLoadingPosts] = useState(true);
   const [postsError, setPostsError] = useState("");
   const [isCreatePostOpen, setIsCreatePostOpen] = useState(false);
+  const [stats, setStats] = useState({ total: 0, verified: 0, reposts: 0 });
 
   useEffect(() => {
     // Fetch user data to check wallet link status
@@ -46,9 +47,31 @@ function Feed() {
               // Fetch metadata JSON from IPFS
               const metadataResponse = await axios.get(asset.metadataGatewayUrl);
               console.log(`[FEED] Metadata received for ${asset.id}:`, metadataResponse.data);
+              const metadata = metadataResponse.data;
+              
+              // Fetch user info from Firestore if wallet address exists
+              let userInfo = null;
+              if (metadata.creator) {
+                try {
+                  const userResult = await firestoreOperations.getUserByWallet(metadata.creator);
+                  if (userResult.success) {
+                    userInfo = userResult.data;
+                  }
+                } catch (err) {
+                  console.log('Could not fetch user info for wallet:', metadata.creator);
+                }
+              }
+              
+              console.log(`[FEED] ✓ Post ${asset.id} author:`, {
+                creatorName: metadata.creatorName,
+                creatorUsername: metadata.creatorUsername,
+                creator: metadata.creator
+              });
+              
               return {
                 ...asset,
-                metadata: metadataResponse.data
+                metadata,
+                userInfo
               };
             } catch (err) {
               console.error(`[FEED] Failed to fetch metadata for ${asset.id}:`, err);
@@ -61,11 +84,23 @@ function Feed() {
                   assetType: asset.assetType,
                   title: null,
                   description: null
-                }
+                },
+                userInfo: null
               };
             }
           })
         );
+        
+        // Calculate real stats
+        const totalPosts = assetsWithMetadata.length;
+        const verifiedOriginals = assetsWithMetadata.filter(p => p.status === 'ORIGINAL').length;
+        const repostCount = assetsWithMetadata.filter(p => p.status === 'REPOST_DETECTED').length;
+        
+        setStats({
+          total: totalPosts,
+          verified: verifiedOriginals,
+          reposts: repostCount
+        });
         
         console.log('[FEED] ✓ Final posts with metadata:', assetsWithMetadata);
         setPosts(assetsWithMetadata);
@@ -210,23 +245,37 @@ function Feed() {
   };
 
   return (
-    <div className="min-h-screen flex">
-      {/* Left Sidebar */}
-      <aside className="hidden md:flex md:w-64 bg-slate-900 border-r border-slate-800 flex-col p-4">
+    <div className="min-h-screen bg-slate-50" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+      {/* Animated Background */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-[-10%] left-[-5%] w-[500px] h-[500px] rounded-full bg-gradient-to-br from-blue-400/20 to-purple-400/15 blur-[80px] animate-blob" />
+        <div className="absolute top-[20%] right-[-10%] w-[400px] h-[400px] rounded-full bg-gradient-to-br from-purple-400/15 to-blue-400/10 blur-[80px] animate-blob animation-delay-2000" />
+        <div className="absolute bottom-[-5%] left-[30%] w-[450px] h-[450px] rounded-full bg-gradient-to-br from-blue-500/15 to-violet-400/10 blur-[80px] animate-blob animation-delay-4000" />
+      </div>
+
+      {/* 3-Column Layout Container */}
+      <div className="flex h-screen relative z-10">
+        {/* Left Sidebar */}
+        <aside className="hidden md:flex md:w-64 bg-white/80 backdrop-blur-md border-r border-slate-200 flex-col p-4 flex-shrink-0">
         <div className="mb-8">
-          <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
-            BlockPost
-          </h1>
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-purple-500 rounded-xl flex items-center justify-center font-bold text-lg text-white">
+              B
+            </div>
+            <h1 className="text-2xl font-bold text-blue-600">
+              BlockPost
+            </h1>
+          </div>
         </div>
 
         <nav className="flex-1 space-y-2">
           <NavLink
             to="/feed"
             className={({ isActive }) =>
-              `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+              `flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
                 isActive
-                  ? "bg-blue-600 text-white"
-                  : "text-slate-300 hover:bg-slate-800"
+                  ? "bg-blue-600 text-white shadow-lg"
+                  : "text-slate-700 hover:bg-slate-100"
               }`
             }
           >
@@ -236,19 +285,19 @@ function Feed() {
 
           <button 
             onClick={() => setIsCreatePostOpen(true)}
-            className="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-300 hover:bg-slate-800 transition-colors w-full text-left"
+            className="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-700 hover:bg-slate-100 transition-all w-full text-left"
           >
-            <span className="text-xl">✍️</span>
+            <span className="text-xl">✍</span>
             <span className="font-medium">Post</span>
           </button>
 
           <NavLink
             to="/profile"
             className={({ isActive }) =>
-              `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+              `flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
                 isActive
-                  ? "bg-blue-600 text-white"
-                  : "text-slate-300 hover:bg-slate-800"
+                  ? "bg-blue-600 text-white shadow-lg"
+                  : "text-slate-700 hover:bg-slate-100"
               }`
             }
           >
@@ -258,31 +307,31 @@ function Feed() {
 
           <a
             href="#"
-            className="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-300 hover:bg-slate-800 transition-colors"
+            className="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-700 hover:bg-slate-100 transition-all"
           >
-            <span className="text-xl">⚙️</span>
+            <span className="text-xl">⚙</span>
             <span className="font-medium">Settings</span>
           </a>
         </nav>
 
-        <div className="mt-auto pt-4 border-t border-slate-800 space-y-3">
+        <div className="mt-auto pt-4 border-t border-slate-200 space-y-3">
           {userData && !userData.walletLinked && (
             <button
               onClick={handleConnectWallet}
               disabled={connectingWallet}
-              className="w-full px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-slate-700 disabled:cursor-not-allowed rounded-lg font-semibold transition-colors text-sm flex items-center justify-center gap-2"
+              className="w-full px-4 py-2 bg-orange-500 hover:bg-orange-600 disabled:bg-slate-200 disabled:cursor-not-allowed rounded-xl font-semibold transition-all hover:scale-105 shadow-lg text-sm flex items-center justify-center gap-2 text-white"
             >
               <span className="text-lg">🦊</span>
               {connectingWallet ? "Connecting..." : "Connect Wallet"}
             </button>
           )}
           {walletError && (
-            <p className="text-xs text-red-400 text-center">{walletError}</p>
+            <p className="text-xs text-red-600 text-center">{walletError}</p>
           )}
           <button
             onClick={handleLogout}
             disabled={loggingOut}
-            className="w-full px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-slate-700 disabled:cursor-not-allowed rounded-lg font-semibold transition-colors text-sm flex items-center justify-center gap-2"
+            className="w-full px-4 py-2 bg-red-500 hover:bg-red-600 disabled:bg-slate-200 disabled:cursor-not-allowed rounded-xl font-semibold transition-all hover:scale-105 shadow-lg text-sm flex items-center justify-center gap-2 text-white"
           >
             <span className="text-lg">🚪</span>
             {loggingOut ? "Logging out..." : "Logout"}
@@ -290,48 +339,64 @@ function Feed() {
         </div>
       </aside>
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col">
+      {/* Main Content Column */}
+      <main className="flex-1 flex flex-col overflow-hidden">
         {/* Top Navbar */}
-        <header className="bg-slate-900 border-b border-slate-800 p-4">
+        <header className="bg-white/80 backdrop-blur-md border-b border-slate-200 p-4 flex-shrink-0">
           <div className="max-w-4xl mx-auto flex items-center gap-4">
             <div className="flex-1">
               <input
                 type="text"
                 placeholder="Search posts or users..."
-                className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-slate-900"
               />
             </div>
-            <button className="px-4 py-2 bg-slate-800 border border-slate-700 hover:bg-slate-700 rounded-lg font-medium transition-colors">
+            <button className="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 rounded-xl font-medium transition-all hover:shadow-md text-slate-700">
               Wallet
             </button>
           </div>
         </header>
 
-        {/* Feed Area */}
-        <main className="flex-1 overflow-y-auto">
+        {/* Feed Area - Scrollable */}
+        <div className="flex-1 overflow-y-auto bg-transparent">
           <div className="max-w-4xl mx-auto p-4 md:p-6">
-            <h2 className="text-2xl font-bold mb-6">Feed</h2>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-slate-900">Feed</h2>
+              <div className="flex items-center gap-2 text-sm text-slate-600">
+                <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                <span className="font-medium">{posts.length} Post{posts.length !== 1 ? 's' : ''}</span>
+              </div>
+            </div>
 
             {loadingPosts ? (
-              <div className="flex justify-center items-center py-12">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+              <div className="flex flex-col justify-center items-center py-12">
+                <div className="animate-spin rounded-full h-16 w-16 border-4 border-slate-200 border-t-blue-600 mb-4"></div>
+                <p className="text-slate-600 font-medium">Loading posts...</p>
               </div>
             ) : postsError ? (
-              <div className="bg-red-500/10 border border-red-500/50 rounded-lg p-6 text-center">
-                <p className="text-red-400">{postsError}</p>
+              <div className="bg-gradient-to-br from-red-50 to-orange-50 border-2 border-red-200 rounded-2xl p-8 text-center shadow-lg">
+                <div className="text-5xl mb-4">⚠️</div>
+                <p className="text-red-600 font-semibold text-lg mb-2">Failed to load posts</p>
+                <p className="text-red-500 text-sm mb-4">{postsError}</p>
                 <button
                   onClick={fetchPosts}
-                  className="mt-4 px-6 py-2 bg-red-600 hover:bg-red-700 rounded-lg font-medium"
+                  className="px-6 py-3 bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 rounded-xl font-semibold text-white transition-all hover:scale-105 shadow-lg"
                 >
-                  Retry
+                  🔄 Retry
                 </button>
               </div>
             ) : posts.length === 0 ? (
-              <div className="bg-slate-800/50 rounded-lg p-12 text-center">
-                <div className="text-6xl mb-4">📭</div>
-                <p className="text-slate-400 text-lg">No posts yet</p>
-                <p className="text-slate-500 text-sm mt-2">Be the first to create content!</p>
+              <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-2xl p-16 text-center border-2 border-blue-200 shadow-lg">
+                <div className="text-7xl mb-6 animate-bounce">📭</div>
+                <p className="text-slate-900 text-2xl font-bold mb-2">No posts yet</p>
+                <p className="text-slate-600 text-base mb-6">Be the first to create content on BlockPost!</p>
+                <button
+                  onClick={() => setIsCreatePostOpen(true)}
+                  className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 rounded-xl font-semibold text-white transition-all hover:scale-105 shadow-lg inline-flex items-center gap-2"
+                >
+                  <span>✍️</span>
+                  <span>Create First Post</span>
+                </button>
               </div>
             ) : (
               <div className="space-y-6">
@@ -353,132 +418,179 @@ function Feed() {
                       </div>
                     )}
 
-                    {/* Post Header */}
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center font-bold text-lg">
-                          {post.metadata?.creator ? post.metadata.creator.slice(2, 3).toUpperCase() : 'U'}
+                    <div className="p-6">
+                      {/* Post Header */}
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 rounded-full flex items-center justify-center font-bold text-lg text-white shadow-md ring-2 ring-white">
+                            {post.metadata?.creatorName ? post.metadata.creatorName.charAt(0).toUpperCase() :
+                             post.metadata?.creatorUsername ? post.metadata.creatorUsername.charAt(0).toUpperCase() :
+                             post.userInfo?.displayName ? post.userInfo.displayName.charAt(0).toUpperCase() : 
+                             post.metadata?.creator ? post.metadata.creator.slice(2, 3).toUpperCase() : 'U'}
+                          </div>
+                          <div>
+                          <div className="font-bold text-slate-900 hover:text-blue-600 transition-colors cursor-pointer">
+                            {post.metadata?.creatorName || 
+                             post.userInfo?.displayName || 
+                             post.metadata?.displayName || 
+                             (post.metadata?.creator ? truncateAddress(post.metadata.creator) : 'Unknown Creator')}
+                          </div>
+                          {post.metadata?.creatorUsername && (
+                            <div className="text-xs text-slate-500">
+                              @{post.metadata.creatorUsername}
+                            </div>
+                          )}
+                            <div className="text-xs text-slate-500 flex items-center gap-1">
+                              <span>🕒</span>
+                              {post.metadata?.createdAt ? formatTimestamp(post.metadata.createdAt) : formatTimestamp(post.timestamp)}
+                            </div>
+                          </div>
                         </div>
-                        <div>
-                          <div className="font-semibold hover:text-blue-400 transition-colors">
-                            {post.metadata?.creator ? truncateAddress(post.metadata.creator) : 'Unknown Creator'}
-                          </div>
-                          <div className="text-xs text-slate-500">
-                            {post.metadata?.createdAt ? new Date(post.metadata.createdAt).toLocaleDateString() : formatTimestamp(post.timestamp)}
-                          </div>
+                        {/* Asset Type Badge */}
+                        <div className="flex items-center gap-2">
+                          {post.assetType === 'video' && (
+                            <span className="px-2 py-1 bg-blue-50 text-blue-600 rounded-lg text-xs font-semibold flex items-center gap-1">
+                              🎥 Video
+                            </span>
+                          )}
+                          {post.assetType === 'image' && (
+                            <span className="px-2 py-1 bg-purple-50 text-purple-600 rounded-lg text-xs font-semibold flex items-center gap-1">
+                              🖼️ Image
+                            </span>
+                          )}
+                          {post.assetType === 'audio' && (
+                            <span className="px-2 py-1 bg-pink-50 text-pink-600 rounded-lg text-xs font-semibold flex items-center gap-1">
+                              🎵 Audio
+                            </span>
+                          )}
+                          {post.assetType === 'text' && (
+                            <span className="px-2 py-1 bg-green-50 text-green-600 rounded-lg text-xs font-semibold flex items-center gap-1">
+                              📝 Text
+                            </span>
+                          )}
                         </div>
                       </div>
-                      <span className="text-sm text-slate-400">
-                        {post.metadata?.createdAt ? formatTimestamp(post.metadata.createdAt) : formatTimestamp(post.timestamp)}
-                      </span>
-                    </div>
 
-                    {/* Post Title */}
-                    {post.metadata?.title && (
-                      <h3 className="text-xl font-bold mb-2">{post.metadata.title}</h3>
-                    )}
-
-                    {/* Post Description */}
-                    {post.metadata?.description && (
-                      <p className="mb-4 text-slate-300">{post.metadata.description}</p>
-                    )}
-
-                    {/* IPFS Media Content */}
-                    <div className="mb-4 bg-slate-800 rounded-lg overflow-hidden">
-                      {post.assetType === 'video' && (
-                        <video
-                          src={post.mediaGatewayUrl}
-                          controls
-                          className="w-full max-h-96 object-contain"
-                          preload="metadata"
-                        >
-                          Your browser does not support video playback.
-                        </video>
+                      {/* Post Title */}
+                      {post.metadata?.title && (
+                        <h3 className="text-xl font-bold mb-2 text-slate-900 leading-tight">{post.metadata.title}</h3>
                       )}
-                      {post.assetType === 'image' && (
-                        <img
-                          src={post.mediaGatewayUrl}
-                          alt={post.metadata?.title || post.metadata?.fileName || 'Image'}
-                          className="w-full max-h-96 object-contain"
-                        />
+
+                      {/* Post Description */}
+                      {post.metadata?.description && (
+                        <p className="mb-4 text-slate-600 leading-relaxed">{post.metadata.description}</p>
                       )}
-                      {post.assetType === 'audio' && (
-                        <div className="p-6">
-                          <audio
+
+                      {/* IPFS Media Content */}
+                      <div className="mb-4 bg-slate-100 rounded-xl overflow-hidden border border-slate-200 shadow-inner">
+                        {post.assetType === 'video' && (
+                          <video
                             src={post.mediaGatewayUrl}
                             controls
-                            className="w-full"
+                            className="w-full max-h-96 object-contain bg-black"
+                            preload="metadata"
                           >
-                            Your browser does not support audio playback.
-                          </audio>
+                            Your browser does not support video playback.
+                          </video>
+                        )}
+                        {post.assetType === 'image' && (
+                          <img
+                            src={post.mediaGatewayUrl}
+                            alt={post.metadata?.title || post.metadata?.fileName || 'Image'}
+                            className="w-full max-h-96 object-contain"
+                          />
+                        )}
+                        {post.assetType === 'audio' && (
+                          <div className="p-6 bg-gradient-to-br from-pink-50 to-purple-50">
+                            <div className="flex items-center gap-3 mb-3">
+                              <div className="w-12 h-12 bg-gradient-to-br from-pink-500 to-purple-500 rounded-lg flex items-center justify-center text-2xl shadow-md">
+                                🎵
+                              </div>
+                              <div>
+                                <div className="font-semibold text-slate-900">Audio File</div>
+                                <div className="text-xs text-slate-600">{post.metadata?.fileName || 'audio.mp3'}</div>
+                              </div>
+                            </div>
+                            <audio
+                              src={post.mediaGatewayUrl}
+                              controls
+                              className="w-full"
+                            >
+                              Your browser does not support audio playback.
+                            </audio>
+                          </div>
+                        )}
+                        {!['video', 'image', 'audio'].includes(post.assetType) && (
+                          <div className="p-6 text-center">
+                            <div className="text-4xl mb-2">📄</div>
+                            <p className="text-slate-700 mb-3 font-medium">{post.metadata?.fileName || 'File'}</p>
+                            <a
+                              href={post.mediaGatewayUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-all hover:scale-105 shadow-md"
+                            >
+                              <span>View on IPFS</span>
+                              <span>→</span>
+                            </a>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Status Badge and Info */}
+                      <div className="flex items-center justify-between flex-wrap gap-3 pt-3 border-t border-slate-200">
+                        <div className="flex items-center gap-3">
+                          {post.status === 'ORIGINAL' && (
+                            <span className="px-3 py-1.5 rounded-lg text-xs font-bold bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-md flex items-center gap-1">
+                              <span>✓</span>
+                              <span>Original</span>
+                            </span>
+                          )}
+                          {post.status === 'REPOST_DETECTED' && (
+                            <span className="px-3 py-1.5 rounded-lg text-xs font-bold bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md flex items-center gap-1">
+                              <span>⚠</span>
+                              <span>Repost</span>
+                            </span>
+                          )}
+                          <span className="text-xs text-slate-500 flex items-center gap-1">
+                            <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                            <span className="font-medium">Verified via VideoGuard</span>
+                          </span>
                         </div>
-                      )}
-                      {!['video', 'image', 'audio'].includes(post.assetType) && (
-                        <div className="p-6 text-center">
-                          <p className="text-slate-400 mb-2">📄 {post.metadata?.fileName || 'File'}</p>
+                        <div className="flex items-center gap-2">
                           <a
                             href={post.mediaGatewayUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-blue-400 hover:text-blue-300 text-sm"
+                            className="px-3 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-600 rounded-lg text-xs font-semibold flex items-center gap-1 transition-all hover:scale-105"
+                            title="View media file on IPFS"
                           >
-                            View on IPFS →
+                            <span>🎬</span>
+                            <span>Media</span>
                           </a>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Status Badge and Info */}
-                    <div className="flex items-center justify-between flex-wrap gap-3">
-                      <div className="flex items-center gap-3">
-                        {post.status === 'ORIGINAL' && (
-                          <span className="px-3 py-1 rounded-full text-xs font-semibold border bg-green-600/20 text-green-400 border-green-600">
-                            ✓ Original on-chain
-                          </span>
-                        )}
-                        {post.status === 'REPOST_DETECTED' && (
-                          <span className="px-3 py-1 rounded-full text-xs font-semibold border bg-amber-600/20 text-amber-400 border-amber-600">
-                            ⚠️ Repost
-                          </span>
-                        )}
-                        <span className="text-xs text-slate-500">
-                          Verified via VideoGuard
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <a
-                          href={post.mediaGatewayUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-xs text-purple-400 hover:text-purple-300 flex items-center gap-1"
-                          title="View media file on IPFS"
-                        >
-                          🎬 Media
-                        </a>
-                        <span className="text-slate-600">•</span>
-                        <a
-                          href={post.metadataGatewayUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-xs text-green-400 hover:text-green-300 flex items-center gap-1"
-                          title="View metadata JSON on IPFS"
-                        >
-                          📋 Metadata
-                        </a>
-                        {post.onChain && (
-                          <>
-                            <span className="text-slate-600">•</span>
+                          <a
+                            href={post.metadataGatewayUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-3 py-1.5 bg-green-50 hover:bg-green-100 text-green-600 rounded-lg text-xs font-semibold flex items-center gap-1 transition-all hover:scale-105"
+                            title="View metadata JSON on IPFS"
+                          >
+                            <span>📋</span>
+                            <span>Metadata</span>
+                          </a>
+                          {post.onChain && (
                             <a
                               href={`https://amoy.polygonscan.com/tx/${post.onChain.txHash}`}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1"
+                              className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg text-xs font-semibold flex items-center gap-1 transition-all hover:scale-105"
                               title="View transaction on PolygonScan"
                             >
-                              🔗 TX
+                              <span>🔗</span>
+                              <span>Blockchain</span>
                             </a>
-                          </>
-                        )}
+                          )}
+                        </div>
                       </div>
                     </div>
                   </article>
@@ -486,43 +598,81 @@ function Feed() {
               </div>
             )}
           </div>
-        </main>
+        </div>
+      </main>
 
-        {/* Right Sidebar (Optional) */}
-        <aside className="hidden xl:block xl:w-80 bg-slate-900 border-l border-slate-800 p-6">
-          <div className="sticky top-6">
-            <h3 className="text-lg font-bold mb-4">How Verification Works</h3>
-            <div className="bg-slate-800/50 rounded-lg p-4 space-y-3 text-sm">
-              <p className="text-slate-300">
-                Every post is hashed using SHA-256 and perceptual hashing (pHash) algorithms.
-              </p>
-              <p className="text-slate-300">
-                Hashes are stored on-chain for permanent verification.
-              </p>
-              <p className="text-slate-300">
-                Visual and audio similarity detection helps identify duplicates.
-              </p>
-            </div>
-
-            <div className="mt-6">
-              <h3 className="text-lg font-bold mb-4">On-Chain Stats</h3>
-              <div className="bg-slate-800/50 rounded-lg p-4 space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Total Posts</span>
-                  <span className="font-semibold">1,234</span>
+      {/* Right Sidebar */}
+      <aside className="hidden xl:flex xl:w-80 bg-white/80 backdrop-blur-md border-l border-slate-200 p-6 flex-col flex-shrink-0 overflow-y-auto">
+        <div className="space-y-6">
+          {/* How Verification Works */}
+          <div>
+              <h3 className="text-lg font-bold mb-4 text-slate-900 flex items-center gap-2">
+                <span className="text-2xl">🔐</span>
+                How Verification Works
+              </h3>
+              <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl p-4 space-y-3 text-sm border border-blue-100 shadow-sm">
+                <div className="flex items-start gap-3">
+                  <span className="text-lg">🔢</span>
+                  <p className="text-slate-700">
+                    Every post is hashed using <span className="font-semibold text-blue-600">SHA-256</span> and <span className="font-semibold text-purple-600">perceptual hashing (pHash)</span> algorithms.
+                  </p>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Verified Original</span>
-                  <span className="font-semibold text-green-400">892</span>
+                <div className="flex items-start gap-3">
+                  <span className="text-lg">⛓️</span>
+                  <p className="text-slate-700">
+                    Hashes are stored on-chain for <span className="font-semibold text-green-600">permanent verification</span>.
+                  </p>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Duplicates Found</span>
-                  <span className="font-semibold text-red-400">342</span>
+                <div className="flex items-start gap-3">
+                  <span className="text-lg">🎯</span>
+                  <p className="text-slate-700">
+                    Visual and audio similarity detection helps <span className="font-semibold text-orange-600">identify duplicates</span>.
+                  </p>
                 </div>
               </div>
             </div>
+
+            {/* On-Chain Stats */}
+            <div>
+              <h3 className="text-lg font-bold mb-4 text-slate-900 flex items-center gap-2">
+                <span className="text-2xl">📊</span>
+                Live Network Stats
+              </h3>
+              <div className="bg-gradient-to-br from-slate-50 to-blue-50 rounded-xl p-4 space-y-3 text-sm border border-slate-200 shadow-sm">
+                <div className="flex justify-between items-center p-3 bg-white rounded-lg shadow-sm">
+                  <span className="text-slate-600 flex items-center gap-2">
+                    <span className="text-blue-500">📝</span>
+                    Total Posts
+                  </span>
+                  <span className="font-bold text-xl text-slate-900">{stats.total}</span>
+                </div>
+                <div className="flex justify-between items-center p-3 bg-white rounded-lg shadow-sm">
+                  <span className="text-slate-600 flex items-center gap-2">
+                    <span className="text-green-500">✓</span>
+                    Verified Original
+                  </span>
+                  <span className="font-bold text-xl text-green-600">{stats.verified}</span>
+                </div>
+                <div className="flex justify-between items-center p-3 bg-white rounded-lg shadow-sm">
+                  <span className="text-slate-600 flex items-center gap-2">
+                    <span className="text-amber-500">⚠</span>
+                    Reposts Detected
+                  </span>
+                  <span className="font-bold text-xl text-amber-600">{stats.reposts}</span>
+                </div>
+              </div>
+              
+              {/* Network Info */}
+              <div className="mt-3 p-3 bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-lg border border-blue-200">
+                <p className="text-xs text-slate-600 text-center">
+                  <span className="font-semibold text-blue-600">Polygon Amoy Testnet</span>
+                  <br/>
+                  Real-time blockchain verification
+                </p>
+            </div>
           </div>
-        </aside>
+        </div>
+      </aside>
       </div>
 
       {/* Create Post Modal */}
