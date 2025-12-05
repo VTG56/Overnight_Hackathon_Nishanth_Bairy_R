@@ -1,8 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { auth, storage } from "./firebase/config";
+import { auth } from "./firebase/config";
 import { firestoreOperations } from "./firebase/firestoreRefs";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { ethers } from "ethers";
 
 function Profile() {
@@ -15,8 +14,6 @@ function Profile() {
     bio: "",
     dob: "",
   });
-  const [profilePic, setProfilePic] = useState(null);
-  const [profilePicPreview, setProfilePicPreview] = useState(null);
   const [connectingWallet, setConnectingWallet] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -166,20 +163,6 @@ function Profile() {
     });
   };
 
-  const handleProfilePicChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setProfilePic(file);
-      
-      // Create preview
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setProfilePicPreview(reader.result);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
   const handleSaveProfile = async () => {
     setLoading(true);
     setError("");
@@ -202,28 +185,16 @@ function Profile() {
         return;
       }
       
-      let profilePicUrl = userData.profilePicUrl || "";
-
-      // Upload new profile picture if changed
-      if (profilePic) {
-        const storageRef = ref(storage, `profilePics/${userId}`);
-        await uploadBytes(storageRef, profilePic);
-        profilePicUrl = await getDownloadURL(storageRef);
-      }
-
       // Update user document
       await firestoreOperations.updateUser(userId, {
         displayName: editFormData.displayName,
         bio: editFormData.bio,
         dob: editFormData.dob,
-        profilePicUrl: profilePicUrl,
         updatedAt: new Date().toISOString(),
       });
 
       setSuccess("Profile updated successfully!");
       setIsEditing(false);
-      setProfilePic(null);
-      setProfilePicPreview(null);
       
       // Refresh user data
       await fetchUserData();
@@ -301,16 +272,8 @@ function Profile() {
             // View Mode
             <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
               {/* Avatar */}
-              <div className="w-24 h-24 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center font-bold text-4xl overflow-hidden">
-                {userData.profilePicUrl ? (
-                  <img
-                    src={userData.profilePicUrl}
-                    alt={userData.username}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  userData.username?.[0]?.toUpperCase() || "?"
-                )}
+              <div className="w-24 h-24 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center font-bold text-4xl text-white overflow-hidden shadow-lg">
+                {userData.avatarInitial || userData.username?.[0]?.toUpperCase() || userData.email?.[0]?.toUpperCase() || "?"}
               </div>
 
               {/* User Info */}
@@ -349,34 +312,12 @@ function Profile() {
             <div className="space-y-6">
               <h3 className="text-xl font-bold mb-4">Edit Profile</h3>
 
-              {/* Profile Picture Upload */}
+              {/* Avatar Display */}
               <div className="flex flex-col items-center">
-                <div className="w-24 h-24 rounded-full bg-slate-800 border-2 border-slate-700 flex items-center justify-center overflow-hidden mb-3">
-                  {profilePicPreview ? (
-                    <img
-                      src={profilePicPreview}
-                      alt="Profile preview"
-                      className="w-full h-full object-cover"
-                    />
-                  ) : userData.profilePicUrl ? (
-                    <img
-                      src={userData.profilePicUrl}
-                      alt={userData.username}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <span className="text-3xl text-slate-500">👤</span>
-                  )}
+                <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-4xl font-bold shadow-lg mb-3">
+                  {userData.avatarInitial || userData.username?.[0]?.toUpperCase() || "?"}
                 </div>
-                <label className="cursor-pointer px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-sm font-medium transition-colors">
-                  Change Picture
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleProfilePicChange}
-                    className="hidden"
-                  />
-                </label>
+                <p className="text-sm text-slate-600">Avatar is generated from your username</p>
               </div>
 
               {/* Edit Form */}
