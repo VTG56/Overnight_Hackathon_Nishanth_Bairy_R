@@ -17,7 +17,6 @@ import multer, { MulterError } from 'multer';
 import dotenv from 'dotenv';
 import { computeHashes } from './hash-engine.js';
 import { pinToIpfs } from './ipfs-storage.js';
-import { detectRepostOnChain, registerAssetOnChain } from './blockchain.js';
 
 // Load environment variables from .env file
 dotenv.config();
@@ -427,24 +426,6 @@ app.post('/upload', upload.single('video'), async (req: Request, res: Response):
       error: error instanceof Error ? error.message : 'An error occurred while processing the upload'
     });
   }
-});
-
-/**
- * Assets Listing Endpoint
- * GET /assets
- * 
- * Returns a list of registered assets from the blockchain
- * TODO: Implement fetching from contract events or cache
- * 
- * Response:
- * - Success: { assets: [] }
- */
-app.get('/assets', async (_req: Request, res: Response): Promise<void> => {
-  // TODO: later fetch recent assets from contract events or a cache
-  res.json({ 
-    assets: [],
-    message: 'Asset listing not yet implemented. Will fetch from contract events.'
-  });
 });
 
 /**
