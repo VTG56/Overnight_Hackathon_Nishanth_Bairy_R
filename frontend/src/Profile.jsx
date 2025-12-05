@@ -239,35 +239,42 @@ function Profile() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950">
+    <div className="min-h-screen bg-slate-50 relative overflow-hidden" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+      {/* Animated Background */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-[-10%] left-[-5%] w-[500px] h-[500px] rounded-full bg-gradient-to-br from-blue-400/20 to-purple-400/15 blur-[80px] animate-blob" />
+        <div className="absolute top-[20%] right-[-10%] w-[400px] h-[400px] rounded-full bg-gradient-to-br from-purple-400/15 to-blue-400/10 blur-[80px] animate-blob animation-delay-2000" />
+        <div className="absolute bottom-[-5%] left-[30%] w-[450px] h-[450px] rounded-full bg-gradient-to-br from-blue-500/15 to-violet-400/10 blur-[80px] animate-blob animation-delay-4000" />
+      </div>
+
       {/* Navigation Bar */}
-      <nav className="bg-slate-900 border-b border-slate-800 p-4">
+      <nav className="bg-white/80 backdrop-blur-md border-b border-slate-200 p-4 relative z-10">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <Link to="/feed" className="text-blue-400 hover:text-blue-300 font-medium">
+          <Link to="/feed" className="text-blue-600 hover:text-blue-700 font-medium">
             ← Back to Feed
           </Link>
-          <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
+          <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
             BlockPost
           </h1>
           <div className="w-24"></div> {/* Spacer for centering */}
         </div>
       </nav>
 
-      <main className="max-w-4xl mx-auto p-4 md:p-6">
+      <main className="max-w-4xl mx-auto p-4 md:p-6 relative z-10">
         {/* Success/Error Messages */}
         {success && (
-          <div className="mb-4 p-3 bg-green-500/10 border border-green-500/50 rounded-lg text-green-400 text-sm">
+          <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-xl text-green-700 text-sm">
             {success}
           </div>
         )}
         {error && (
-          <div className="mb-4 p-3 bg-red-500/10 border border-red-500/50 rounded-lg text-red-400 text-sm">
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
             {error}
           </div>
         )}
 
         {/* Profile Header */}
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 md:p-8 mb-6">
+        <div className="bg-white/80 backdrop-blur-sm border border-slate-200 rounded-3xl p-6 md:p-8 mb-6 shadow-card">
           {!isEditing ? (
             // View Mode
             <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
@@ -278,12 +285,12 @@ function Profile() {
 
               {/* User Info */}
               <div className="flex-1">
-                <h2 className="text-3xl font-bold mb-2">
+                <h2 className="text-3xl font-bold mb-2 text-slate-900">
                   {userData.displayName || userData.username || "User"}
                 </h2>
-                <div className="flex flex-col gap-2 text-slate-400 mb-4">
+                <div className="flex flex-col gap-2 text-slate-600 mb-4">
                   <div className="flex items-center gap-2">
-                    <span className="font-medium text-slate-300">
+                    <span className="font-medium text-slate-700">
                       @{userData.username || "unknown"}
                     </span>
                     <span>•</span>
@@ -296,13 +303,13 @@ function Profile() {
                     })}
                   </div>
                 </div>
-                <p className="text-slate-300">{userData.bio || "No bio yet"}</p>
+                <p className="text-slate-700">{userData.bio || "No bio yet"}</p>
               </div>
 
               {/* Edit Profile Button */}
               <button
                 onClick={() => setIsEditing(true)}
-                className="px-6 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg font-medium transition-colors"
+                className="px-6 py-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 rounded-xl font-medium transition-all hover:scale-105 shadow-lg text-white"
               >
                 Edit Profile
               </button>
@@ -310,7 +317,7 @@ function Profile() {
           ) : (
             // Edit Mode
             <div className="space-y-6">
-              <h3 className="text-xl font-bold mb-4">Edit Profile</h3>
+              <h3 className="text-xl font-bold mb-4 text-slate-900">Edit Profile</h3>
 
               {/* Avatar Display */}
               <div className="flex flex-col items-center">
@@ -323,37 +330,37 @@ function Profile() {
               {/* Edit Form */}
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium mb-2">Display Name</label>
+                  <label className="block text-sm font-medium mb-2 text-slate-700">Display Name</label>
                   <input
                     type="text"
                     name="displayName"
                     value={editFormData.displayName}
                     onChange={handleEditChange}
-                    className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-100"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900"
                     placeholder="Your display name"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-2">Bio</label>
+                  <label className="block text-sm font-medium mb-2 text-slate-700">Bio</label>
                   <textarea
                     name="bio"
                     value={editFormData.bio}
                     onChange={handleEditChange}
                     rows="3"
-                    className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-100 resize-none"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 resize-none"
                     placeholder="Tell us about yourself..."
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-2">Date of Birth</label>
+                  <label className="block text-sm font-medium mb-2 text-slate-700">Date of Birth</label>
                   <input
                     type="date"
                     name="dob"
                     value={editFormData.dob}
                     onChange={handleEditChange}
-                    className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-100"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900"
                     max={new Date().toISOString().split("T")[0]}
                   />
                 </div>
@@ -364,22 +371,20 @@ function Profile() {
                 <button
                   onClick={() => {
                     setIsEditing(false);
-                    setProfilePic(null);
-                    setProfilePicPreview(null);
                     setEditFormData({
                       displayName: userData.displayName || "",
                       bio: userData.bio || "",
                       dob: userData.dob || "",
                     });
                   }}
-                  className="flex-1 py-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg font-medium transition-colors"
+                  className="flex-1 py-3 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl font-medium transition-all text-slate-700"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleSaveProfile}
                   disabled={loading}
-                  className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-700 disabled:cursor-not-allowed rounded-lg font-semibold transition-colors"
+                  className="flex-1 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:bg-slate-200 disabled:cursor-not-allowed rounded-xl font-semibold transition-all shadow-lg text-white"
                 >
                   {loading ? "Saving..." : "Save Changes"}
                 </button>
@@ -390,16 +395,16 @@ function Profile() {
 
         {/* Wallet Connection Section */}
         {!userData.walletLinked && !isEditing && (
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 mb-6">
-            <h3 className="text-lg font-bold mb-2">Connect MetaMask Wallet</h3>
-            <p className="text-slate-400 text-sm mb-4">
+          <div className="bg-white/80 backdrop-blur-sm border border-slate-200 rounded-3xl p-6 mb-6 shadow-card">
+            <h3 className="text-lg font-bold mb-2 text-slate-900">Connect MetaMask Wallet</h3>
+            <p className="text-slate-600 text-sm mb-4">
               Connect your wallet to start posting content on BlockPost. Your wallet address
               will be linked to your account for on-chain verification.
             </p>
             <button
               onClick={handleConnectWallet}
               disabled={connectingWallet}
-              className="w-full md:w-auto px-6 py-3 bg-orange-600 hover:bg-orange-700 disabled:bg-slate-700 disabled:cursor-not-allowed rounded-lg font-medium transition-colors flex items-center justify-center gap-3"
+              className="w-full md:w-auto px-6 py-3 bg-orange-500 hover:bg-orange-600 disabled:bg-slate-200 disabled:cursor-not-allowed rounded-xl font-medium transition-all hover:scale-105 shadow-lg flex items-center justify-center gap-3 text-white"
             >
               <span className="text-xl">🦊</span>
               {connectingWallet ? "Connecting..." : "Connect MetaMask"}
@@ -409,12 +414,12 @@ function Profile() {
 
         {/* Posts Section */}
         <div>
-          <h3 className="text-2xl font-bold mb-4">Your posts</h3>
+          <h3 className="text-2xl font-bold mb-4 text-slate-900">Your posts</h3>
 
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-12 text-center">
+          <div className="bg-white/80 backdrop-blur-sm border border-slate-200 rounded-3xl p-12 text-center shadow-card">
             <div className="text-6xl mb-4">📝</div>
-            <p className="text-slate-400 text-lg mb-2">Posts Management</p>
-            <p className="text-slate-500 text-sm">
+            <p className="text-slate-700 text-lg mb-2 font-semibold">Posts Management</p>
+            <p className="text-slate-600 text-sm">
               Coming soon - IPFS integration for decentralized content storage
             </p>
           </div>

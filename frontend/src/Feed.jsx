@@ -17,6 +17,7 @@ function Feed() {
   const [loadingPosts, setLoadingPosts] = useState(true);
   const [postsError, setPostsError] = useState("");
   const [isCreatePostOpen, setIsCreatePostOpen] = useState(false);
+  const [postsWithUsernames, setPostsWithUsernames] = useState([]);
 
   useEffect(() => {
     // Fetch user data to check wallet link status
@@ -34,8 +35,12 @@ function Feed() {
       const response = await axios.get(`${API_URL}/posts`);
       
       if (response.data.success) {
-        setPosts(response.data.posts);
-        console.log(`Fetched ${response.data.posts.length} posts from backend`);
+        const fetchedPosts = response.data.posts;
+        setPosts(fetchedPosts);
+        console.log(`Fetched ${fetchedPosts.length} posts from backend`);
+        
+        // Fetch usernames for each post's wallet address
+        await enrichPostsWithUsernames(fetchedPosts);
       } else {
         setPostsError('Failed to load posts');
       }
@@ -44,6 +49,37 @@ function Feed() {
       setPostsError('Failed to connect to backend');
     } finally {
       setLoadingPosts(false);
+    }
+  };
+
+  const enrichPostsWithUsernames = async (posts) => {
+    try {
+      const enrichedPosts = await Promise.all(
+        posts.map(async (post) => {
+          try {
+            // Try to get user by wallet address
+            const result = await firestoreOperations.getUserByWallet(post.walletAddress);
+            if (result.success && result.data) {
+              return {
+                ...post,
+                username: result.data.username || null,
+                displayName: result.data.displayName || null
+              };
+            }
+          } catch (error) {
+            console.error(`Error fetching username for ${post.walletAddress}:`, error);
+          }
+          return {
+            ...post,
+            username: null,
+            displayName: null
+          };
+        })
+      );
+      setPostsWithUsernames(enrichedPosts);
+    } catch (error) {
+      console.error('Error enriching posts with usernames:', error);
+      setPostsWithUsernames(posts.map(post => ({ ...post, username: null, displayName: null })));
     }
   };
 
@@ -263,30 +299,67 @@ function Feed() {
             <span className="text-xl">⚙️</span>
             <span className="font-medium">Settings</span>
           </a>
+
+          {/* Logout Button */}
+          <button
+            onClick={handleLogout}
+            disabled={loggingOut}
+            className="flex items-center gap-3 px-4 py-3 rounded-xl bg-red-500 hover:bg-red-600 disabled:bg-slate-200 disabled:cursor-not-allowed transition-all hover:scale-105 shadow-lg text-white w-full"
+          >
+            <span className="text-xl">🚪</span>
+            <span className="font-medium">{loggingOut ? "Logging out..." : "Logout"}</span>
+          </button>
         </nav>
 
-        <div className="mt-auto pt-4 border-t border-slate-200 space-y-3">
-          {userData && !userData.walletLinked && (
+        {/* On-Chain Stats */}
+        <div className="mt-4 px-2">
+          <div className="bg-gradient-to-br from-blue-50 to-purple-50 border border-slate-200 rounded-xl p-4">
+            <h3 className="text-sm font-bold text-slate-900 mb-3">On-Chain Stats</h3>
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-slate-600">Total Posts</span>
+                <span className="text-sm font-bold text-slate-900">1,234</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-slate-600">Verified Original</span>
+                <span className="text-sm font-bold text-green-600">892</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-slate-600">Duplicates Found</span>
+                <span className="text-sm font-bold text-red-600">342</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Wallet Connect Button (if needed) */}
+        {userData && !userData.walletLinked && (
+          <div className="px-2 mt-4">
             <button
               onClick={handleConnectWallet}
               disabled={connectingWallet}
-              className="w-full px-4 py-2 bg-orange-500 hover:bg-orange-600 disabled:bg-slate-200 disabled:cursor-not-allowed rounded-xl font-semibold transition-all hover:scale-105 shadow-lg text-sm flex items-center justify-center gap-2 text-white"
+              className="w-full px-4 py-3 bg-orange-500 hover:bg-orange-600 disabled:bg-slate-200 disabled:cursor-not-allowed rounded-xl font-semibold transition-all hover:scale-105 shadow-lg text-sm flex items-center justify-center gap-2 text-white"
             >
               <span className="text-lg">🦊</span>
               {connectingWallet ? "Connecting..." : "Connect Wallet"}
             </button>
-          )}
-          {walletError && (
-            <p className="text-xs text-red-600 text-center">{walletError}</p>
-          )}
-          <button
-            onClick={handleLogout}
-            disabled={loggingOut}
-            className="w-full px-4 py-2 bg-red-500 hover:bg-red-600 disabled:bg-slate-200 disabled:cursor-not-allowed rounded-xl font-semibold transition-all hover:scale-105 shadow-lg text-sm flex items-center justify-center gap-2 text-white"
-          >
-            <span className="text-lg">🚪</span>
-            {loggingOut ? "Logging out..." : "Logout"}
-          </button>
+            {walletError && (
+              <p className="text-xs text-red-600 text-center mt-2">{walletError}</p>
+            )}
+          </div>
+        )}
+
+        {/* How Verification Works */}
+        <div className="mt-auto pt-4 px-2">
+          <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+            <h3 className="text-xs font-bold text-slate-900 mb-3 text-center">How Verification Works</h3>
+            <div className="space-y-2 text-xs text-slate-600 text-center">
+              <p>Every post is hashed using SHA-256 and perceptual hashing (pHash)</p>
+              <p>Hashes stored on-chain for permanent verification</p>
+              <p>Visual and audio similarity detection identifies duplicates</p>
+            </div>
+          </div>
+          <p className="text-xs text-slate-500 text-center mt-3">© 2025 BlockPost</p>
         </div>
       </aside>
 
@@ -335,7 +408,7 @@ function Feed() {
               </div>
             ) : (
               <div className="space-y-6">
-                {posts.map((post) => (
+                {postsWithUsernames.map((post) => (
                   <article
                     key={post.id}
                     className="bg-white/80 backdrop-blur-sm border border-slate-200 rounded-xl p-6 shadow-soft hover:shadow-card transition-all"
@@ -343,13 +416,32 @@ function Feed() {
                     {/* Post Header */}
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center font-bold text-lg text-white">
-                          {post.walletAddress.slice(2, 3).toUpperCase()}
-                        </div>
+                        {post.username ? (
+                          <Link to={`/user/${post.username}`}>
+                            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center font-bold text-lg text-white hover:scale-110 transition-transform cursor-pointer">
+                              {post.username.charAt(0).toUpperCase()}
+                            </div>
+                          </Link>
+                        ) : (
+                          <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center font-bold text-lg text-white">
+                            {post.walletAddress.slice(2, 3).toUpperCase()}
+                          </div>
+                        )}
                         <div>
-                          <div className="font-semibold hover:text-blue-600 transition-colors text-slate-900">{truncateAddress(post.walletAddress)}</div>
+                          {post.username ? (
+                            <Link 
+                              to={`/user/${post.username}`}
+                              className="font-semibold hover:text-blue-600 transition-colors text-slate-900 hover:underline"
+                            >
+                              @{post.username}
+                            </Link>
+                          ) : (
+                            <div className="font-semibold text-slate-900">
+                              {truncateAddress(post.walletAddress)}
+                            </div>
+                          )}
                           <div className="text-xs text-slate-500">
-                            IPFS: {post.ipfsCid.substring(0, 8)}...
+                            {post.username ? truncateAddress(post.walletAddress) : `IPFS: ${post.ipfsCid.substring(0, 8)}...`}
                           </div>
                         </div>
                       </div>
@@ -435,41 +527,7 @@ function Feed() {
           </div>
         </main>
 
-        {/* Right Sidebar (Optional) */}
-        <aside className="hidden xl:block xl:w-80 bg-white/80 backdrop-blur-md border-l border-slate-200 p-6 relative z-10">
-          <div className="sticky top-6">
-            <h3 className="text-lg font-bold mb-4 text-slate-900">How Verification Works</h3>
-            <div className="bg-slate-50 rounded-xl p-4 space-y-3 text-sm border border-slate-200">
-              <p className="text-slate-700">
-                Every post is hashed using SHA-256 and perceptual hashing (pHash) algorithms.
-              </p>
-              <p className="text-slate-700">
-                Hashes are stored on-chain for permanent verification.
-              </p>
-              <p className="text-slate-700">
-                Visual and audio similarity detection helps identify duplicates.
-              </p>
-            </div>
 
-            <div className="mt-6">
-              <h3 className="text-lg font-bold mb-4 text-slate-900">On-Chain Stats</h3>
-              <div className="bg-slate-50 rounded-xl p-4 space-y-2 text-sm border border-slate-200">
-                <div className="flex justify-between text-slate-700">
-                  <span className="text-slate-600">Total Posts</span>
-                  <span className="font-semibold text-slate-900">1,234</span>
-                </div>
-                <div className="flex justify-between text-slate-700">
-                  <span className="text-slate-600">Verified Original</span>
-                  <span className="font-semibold text-green-600">892</span>
-                </div>
-                <div className="flex justify-between text-slate-700">
-                  <span className="text-slate-600">Duplicates Found</span>
-                  <span className="font-semibold text-red-600">342</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </aside>
       </div>
 
       {/* Create Post Modal */}
